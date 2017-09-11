@@ -22,7 +22,13 @@ Source of data in this API is an H2 database to which it retries to connect 3 ti
 
 A Cache facility is available if the consumer wants to pull the data from the cache, this is achieved over /customer/{ID} resource which uses in memory store object to store the data with key as customerID. The data is only picked from cache if the request.header.cache-control ='only-if-cached'.
 
-Pagination is allowed over /customer resource which allows the customer to utilise page facility 
+Pagination is allowed over /customer resource allowing prcoessing of large chunk of data processesing in chunks of records at a time instead of trying to process all the records in memory at the same time. 
+
+Exception :
+Error handling is done to catch the the exception and provide with the meaningful error message with http status codes for different types of errors. Error have been categorised in three different categories:
+-Techincal: Any excpetion occuring while processing the request.
+-Application: Error related to backend services.
+-Validation: Error returned for validation on the input request.
 
 Documentation
 
