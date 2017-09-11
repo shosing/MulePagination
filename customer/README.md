@@ -16,8 +16,13 @@ This document assumes that you are familiar with Mule 101 and the Anypoint™ St
 
 Implementation
 
+API is implemented taking use of APIKIT which utilises the raml file developed to share the contract between the source and target.
+APIKit helps in creating the routes for the flow based in the request query. This also helps in defining the global exception mapping defined in the raml file. 
+Source of data in this API is an H2 database to which it retries to connect 3 times before raising an exception. Transformation of the message is achieved using Mule provided Transformer(Transform Message).
 
+A Cache facility is available if the consumer wants to pull the data from the cache, this is achieved over /customer/{ID} resource which uses in memory store object to store the data with key as customerID. The data is only picked from cache if the request.header.cache-control ='only-if-cached'.
 
+Pagination is allowed over /customer resource which allows the customer to utilise page facility 
 
 Documentation
 
