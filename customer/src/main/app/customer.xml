@@ -27,7 +27,7 @@ http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/m
   
     <flow name="customer-main">
         <http:listener config-ref="customer-httpListenerConfig" path="/api/*" doc:name="HTTP"/>
-        <logger level="INFO" doc:name="Logger" message="Request in  #[message.inboundProperties.'http.query.string'.ID]"/>
+        <logger level="INFO" doc:name="Logger" message="Request in : #[message.inboundProperties.'http.query.string']"/>
         <apikit:router config-ref="Router" doc:name="APIkit Router"/>
 
         <exception-strategy ref="customer-apiKitGlobalExceptionMapping" doc:name="Reference Exception Strategy"/>
@@ -35,10 +35,10 @@ http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/m
 
 
     <flow name="get:/customers:customer-config">
-        <expression-component doc:name="Expression"><![CDATA[flowVars.name = message.inboundProperties['http.query.params'].postcode;]]></expression-component>
+        <expression-component doc:name="Expression"><![CDATA[postcode=#[message.inboundProperties.'http.query.params'.postcode]]]></expression-component>
         <choice doc:name="Choice">
             <when expression="!(flowVars.postcode == null)">
-                <until-successful objectStore-ref="objectstore" maxRetries="3" doc:name="Retries 3 times">
+                <until-successful objectStore-ref="objectstore" maxRetries="3" failureExpression="#[message.inboundProperties['http.status'] != 202" doc:name="Retries 3 times">
                     <db:select config-ref="Generic_Database_Configuration" doc:name="getCustomerbyPostcode">
                         <db:parameterized-query><![CDATA[SELECT c.custID ,c.FIRSTNAME ,c.LASTNAME ,a.ADDLINE1 ,a.ADDLINE2 ,a.SUBURB ,a.CITY, a.STATE, a.POSTCODE ,c.LASTMODIFED FROM CUSTOMER c,ADDRESS a
 WHERE c.custID=a.custID
@@ -116,7 +116,7 @@ data: result[resultStart to resultEnd] map
     <flow name="get:/customers/{ID}:customer-config">
         <logger message="query for customerID : #[message.inboundProperties.'http.query.string'.ID]" level="INFO" doc:name="Logger"/>
         <ee:cache cachingStrategy-ref="Caching_Strategy1" filterExpression="#[message.inboundProperties.cache-control] == &quot;only-if-cached&quot;" doc:name="Cache">
-            <until-successful objectStore-ref="objectstore" maxRetries="5" doc:name="Retries 3 times">
+            <until-successful objectStore-ref="objectstore" maxRetries="3" doc:name="Retries 3 times" failureExpression="#[message.inboundProperties['http.status'] != 202">
                 <db:select config-ref="Generic_Database_Configuration" doc:name="Database">
                     <db:dynamic-query><![CDATA[SELECT c.custID ,c.FIRSTNAME ,c.LASTNAME ,a.ADDLINE1 ,a.ADDLINE2 ,a.SUBURB ,a.CITY, a.STATE, a.POSTCODE ,c.LASTMODIFED FROM CUSTOMER c,ADDRESS a
 WHERE c.custID=#[message.inboundProperties.'http.query.string'.ID]
@@ -147,7 +147,7 @@ c.custID=a.custID;]]></db:dynamic-query>
         </dw:transform-message>
 
         <catch-exception-strategy doc:name="Catch Exception Strategy">
-            <logger level="INFO" doc:name="Logger"/>
+            <logger level="ERROR" doc:name="Logger"/>
             <set-payload doc:name="Set Payload"/>
         </catch-exception-strategy>
 
