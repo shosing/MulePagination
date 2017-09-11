@@ -1,0 +1,16 @@
+{
+    "inputMessageMetadata": {
+        "messagePayload": {
+            "connectorName": "#_custom_mule_metadata_type_#",
+            "typeId": "dbTestCust"
+        }
+    },
+    "outputMessageMetadata": {
+        "messagePayload": {
+            "connectorName": "#_custom_mule_metadata_type_#",
+            "typeId": "customer"
+        }
+    },
+    "id": "091aec8a-3333-4a69-b030-e8d7683b63ed",
+    "version": "5.2.0.0"
+}

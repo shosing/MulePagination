@@ -1,0 +1,353 @@
+#%RAML 1.0
+title: Customer Details API
+version: v1.0
+
+schemas: 
+  -customer: |
+    {
+      "properties": {
+          "id": {
+            "description": "The customer ID",
+            "type": "number",
+            "required": true
+          },
+          "firstName": {
+            "description": " first name of customer",
+            "type": "string",
+            "required": true
+          },
+          "lastName": {
+            "description": " last name of customer",
+            "type": "string",
+            "required": false
+          },
+          "address": {
+            "description": "address of customer",
+            "type": "object",
+            "properties": {
+              
+              "addressLine1": {
+                "description": "Address line one",
+                "type": "string",
+                "required": true
+              },
+              "addressLine2": {
+                "description": " Address line two",
+                "type": "string"
+              },
+              "suburb": {
+                "description": " Suburb",
+                "type": "string",
+                "required": false
+              },
+              "city": {
+                "description": " city Name",
+                "type": "string",
+                "required": true
+              },
+              "territory": {
+                "description": " Territory NSW, VIC etc",
+                "type": "string",
+                "required": true
+              },
+              "postcode": {
+                "description": " postal code of the suburb",
+                "type": "integer",
+                "required": true
+              }
+            }
+          },
+          "lastModified": {
+            "description": "datetime of the last update on the customer",
+            "type": "string"
+            }
+        }
+       }
+
+  -errors: |
+    {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "the error code associated with this error from pega",
+          "example": "CUST_4000"
+          },
+        "status": {
+          "type": "string",
+          "description": "this is the status of the error",
+          "example": "INVALID_REQUEST"
+        },
+        "message": {
+          "type": "string",
+          "description": "a descriptive error message to identify the cause of this error",
+          "example": "ID is mandatory"
+        },
+        "dateTime": {
+          "type": "string",
+          "description": "date time stamp of the error response",
+          "example": "2017-11-21T12:00:27.87+10:00"
+        }
+      }
+    }
+  -headers: |
+    {
+      "type": "object",
+      "properties": {
+        "trace_id": {
+          "type": "string",
+          "description": "A unique ID for the request for traceability. UUID format. If consumer doesn't provide, API must generate and return",
+          "required": false
+          },
+        "timestamp": {
+          "type": "string",
+          "format": "datetime",
+          "description": "Request timestamp in UTC",
+          "required": true
+        },
+        "cache-control": {
+          "type": "string",
+          "description": "if specified, request to retrieve cached response ",
+          "required": false,
+          "enum" :["only-if-cached"]
+          } 
+        
+      }
+
+    }
+resourceTypes:
+  base:
+    get?:
+      responses: &standardResponses
+        200:
+          description: OK
+  collection:
+    type: base
+    get:
+      is: [-paged]
+      responses:
+        200:
+          
+traits: 
+  -paged: 
+    displayName: paged
+    queryParameters: 
+      pageSize:
+        displayName: start
+        description: Size of the page
+        type: number
+      pageIndex:
+        displayName: pages
+        description: Index of the page
+        type: number
+
+/customers:
+  get:
+    "queryParameters":
+      firstName?: string
+      postcode?: number
+
+    responses:
+      200:
+        body:
+          application/json:
+            example: |
+              {
+                "id": "123456",
+                "firstName": "Tom",
+                "lastName": "Hanks",
+                "address": {
+                  "streetNum": "5-7",
+                  "addressLine1": "Beresford Road",
+                  "suburb": "Strathfield",
+                  "city": "Sydney",
+                  "territory": "NSW",
+                  "postcode": "2135"
+                },
+                "lastModified": "2017-05-21T12:00:27.87+10:00"  
+              },
+              {
+                "id": "456",
+                "firstName": "Hanky",
+                "lastName": "Panky",
+                "address": {
+                  "streetNum": "5-7",
+                  "addressLine1": "Road",
+                  "suburb": "Homebush",
+                  "city": "Sydney",
+                  "territory": "NSW",
+                  "postcode": "2140"
+                },
+                "lastModified":  "2017-04-21T12:00:27.87+10:00"
+                
+              }
+        
+      400:
+          "description": "Bad request"
+          "body": 
+            application/json:
+              example: | 
+                {
+                "error" : {
+                    "code" : "CUST_4000",
+                    "Status" : "INTERNAL",
+                    "message" : "Bad Request: Your request contained invalid or missing data",
+                    "datetime": "2017-05-21T12:00:27.87+10:00"
+                    }
+                }
+      401:
+          "description": "Unauthorized"
+          "body": 
+              application/json:
+                example: | 
+                  {
+                  "error" : {
+                      "code" : "CUST_5000",
+                      "Status" : "INTERNAL",
+                      "message" : "Unauthenticated: Not Authenticated",
+                      "datetime": "2017-05-21T12:00:27.87+10:00"
+                      }
+                  }         
+      404:
+          "description": "Resource not found"
+          "body": 
+              application/json:
+                example: | 
+                  {
+                  "error" : {
+                      "code" : "CUST_5000",
+                      "status" : "INTERNAL",
+                      "message" : "Resource not found: Resource not found",
+                      "datetime": "2017-05-21T12:00:27.87+10:00"
+                      }
+                  }
+      405:
+          "description": "Customer does not exist"
+          "body": 
+              application/json:
+                example: | 
+                  {
+                  "error" : {
+                      "code" : "DB_5000",
+                      "status" : "APPLICATION",
+                      "message" : "Resource not found: Resource not found",
+                      "datetime": "2017-05-21T12:00:27.87+10:00"
+                      }
+                  }
+      406:
+          "description": "DB is not available"
+          "body": 
+              application/json:
+                example: | 
+                  {
+                  "error" : {
+                      "code" : "DB_5000",
+                      "status" : "TECHNICAL",
+                      "message" : "Cannot process request",
+                      "datetime": "2017-05-21T12:00:27.87+10:00"
+                      }
+                  }
+          
+      500:
+          "description": "Server error"
+          "body": 
+              application/json:
+                example: | 
+                  {
+                  "error" : {
+                      "code" : "CUST_6000",
+                      "status" : "TECHNICAL"
+                      "message" : "Server Error: Internal server error - a generic condition indicating an unexpected error in the server",
+                      "datetime": "2017-05-21T12:00:27.87+10:00"
+                      }
+                  }
+  /{ID}:
+    get:
+      responses:
+        200:
+          description: Ok
+          body:
+            application/json:
+              type: -customer
+              
+
+        400:
+          "description": "Bad request"
+          "body": 
+            application/json:
+              example: | 
+                {
+                "error" : {
+                    "code" : "CUST_4000",
+                    "Status" : "INTERNAL",
+                    "message" : "Bad Request: Your request contained invalid or missing data",
+                    "datetime": "2017-05-21T12:00:27.87+10:00"
+                    }
+                }
+        401:
+          "description": "Unauthorized"
+          "body": 
+              application/json:
+                example: | 
+                  {
+                  "error" : {
+                      "code" : "CUST_5000",
+                      "Status" : "INTERNAL",
+                      "message" : "Unauthenticated: Not Authenticated",
+                      "datetime": "2017-05-21T12:00:27.87+10:00"
+                      }
+                  }         
+        404:
+          "description": "Resource not found"
+          "body": 
+              application/json:
+                example: | 
+                  {
+                  "error" : {
+                      "code" : "CUST_5000",
+                      "status" : "INTERNAL",
+                      "message" : "Resource not found: Resource not found",
+                      "datetime": "2017-05-21T12:00:27.87+10:00"
+                      }
+                  }
+        405:
+          "description": "Customer does not exist"
+          "body": 
+              application/json:
+                example: | 
+                  {
+                  "error" : {
+                      "code" : "DB_5000",
+                      "status" : "APPLICATION",
+                      "message" : "Resource not found: Resource not found",
+                      "datetime": "2017-05-21T12:00:27.87+10:00"
+                      }
+                  }
+        406:
+          "description": "DB is not available"
+          "body": 
+              application/json:
+                example: | 
+                  {
+                  "error" : {
+                      "code" : "DB_5000",
+                      "status" : "TECHNICAL",
+                      "message" : "Cannot process request",
+                      "datetime": "2017-05-21T12:00:27.87+10:00"
+                      }
+                  }
+          
+        500:
+          "description": "Server error"
+          "body": 
+              application/json:
+                example: | 
+                  {
+                  "error" : {
+                      "code" : "CUST_6000",
+                      "status" : "TECHNICAL"
+                      "message" : "Server Error: Internal server error - a generic condition indicating an unexpected error in the server",
+                      "datetime": "2017-05-21T12:00:27.87+10:00"
+                      }
+                  }
+                

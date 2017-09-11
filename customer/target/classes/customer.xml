@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:wmq="http://www.mulesoft.org/schema/mule/ee/wmq" xmlns:context="http://www.springframework.org/schema/context" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:spring="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/apikit http://www.mulesoft.org/schema/mule/apikit/current/mule-apikit.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.1.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-current.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/ee/wmq http://www.mulesoft.org/schema/mule/ee/wmq/current/mule-wmq-ee.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd">
+
+    <http:listener-config name="customer-httpListenerConfig" host="localhost" port="8085" doc:name="HTTP Listener Configuration"/>
+   
+    <db:generic-config name="Generic_Database_Configuration" url="jdbc:h2:tcp://localhost/~/test;USER=ssingh34;PASSWORD=shour@Bh2" driverClassName="org.h2.Driver" doc:name="Generic Database Configuration"/>
+    <apikit:config name="Router" raml="customer.raml" consoleEnabled="false" consolePath="console" keepRamlBaseUri="false" doc:name="Router">
+        <apikit:flow-mapping resource="/customers" action="get" flow-ref="get:/customers:customer-config"/>
+        <apikit:flow-mapping resource="/customers/{ID}" action="get" flow-ref="get:/customers/{ID}:customer-config"/>
+    </apikit:config>
+    <spring:beans>
+        <spring:bean id="Bean" name="objectstore" class="org.mule.util.store.SimpleMemoryObjectStore"/>
+    </spring:beans>
+    <ee:object-store-caching-strategy name="Caching_Strategy1" keyGenerationExpression="#[message.inboundProperties.'http.query.string'.ID]" doc:name="Caching Strategy">
+        <in-memory-store/>
+    </ee:object-store-caching-strategy>
+  
+    <flow name="customer-main">
+        <http:listener config-ref="customer-httpListenerConfig" path="/api/*" doc:name="HTTP"/>
+        <logger level="INFO" doc:name="Logger" message="Request in  #[message.inboundProperties.'http.query.string'.ID]"/>
+        <apikit:router config-ref="Router" doc:name="APIkit Router"/>
+
+        <exception-strategy ref="customer-apiKitGlobalExceptionMapping" doc:name="Reference Exception Strategy"/>
+    </flow>
+
+
+    <flow name="get:/customers:customer-config">
+        <expression-component doc:name="Expression"><![CDATA[flowVars.name = message.inboundProperties['http.query.params'].postcode;]]></expression-component>
+        <choice doc:name="Choice">
+            <when expression="!(flowVars.postcode == null)">
+                <until-successful objectStore-ref="objectstore" maxRetries="3" doc:name="Retries 3 times">
+                    <db:select config-ref="Generic_Database_Configuration" doc:name="getCustomerbyPostcode">
+                        <db:parameterized-query><![CDATA[SELECT c.custID ,c.FIRSTNAME ,c.LASTNAME ,a.ADDLINE1 ,a.ADDLINE2 ,a.SUBURB ,a.CITY, a.STATE, a.POSTCODE ,c.LASTMODIFED FROM CUSTOMER c,ADDRESS a
+WHERE c.custID=a.custID
+AND a.POSTCODE=#[message.inboundProperties.'http.query.params'.postcode];]]></db:parameterized-query>
+                    </db:select>
+                </until-successful>
+            </when>
+            <otherwise>
+                <until-successful objectStore-ref="objectstore" maxRetries="3" failureExpression="#[message.inboundProperties['http.status'] != 202" doc:name="Retries 3 times">
+                    <db:select config-ref="Generic_Database_Configuration" doc:name="getAllCustomer">
+                        <db:parameterized-query><![CDATA[SELECT c.custID ,c.FIRSTNAME ,c.LASTNAME ,a.ADDLINE1 ,a.ADDLINE2 ,a.SUBURB ,a.CITY, a.STATE, a.POSTCODE ,c.LASTMODIFED FROM CUSTOMER c,ADDRESS a
+WHERE c.custID=a.custID;]]></db:parameterized-query>
+                    </db:select>
+                </until-successful>
+            </otherwise>
+        </choice>
+        <dw:transform-message doc:name="Transform Message" metadata:id="30b5bcf2-e8b1-46ae-8cd9-23883941cb44">
+            <dw:input-payload mimeType="application/java"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+%var pageIndex = 2
+%var pageSize=5
+%var collectionSize=sizeOf result
+%var resultStart =(pageSize*pageSize)
+%var resultEndTemp=(resultStart+(pageSize-1))
+%var resultEnd= resultEndTemp when resultEndTemp < collectionSize otherwise collectionSize
+%var result = (payload.result)
+---
+data: result[resultStart to resultEnd] map
+{
+	id: payload.CUSTID,
+	firstName: payload.FIRSTNAME,
+	lastName: payload.LASTNAME,
+	address: {
+		addressLine1: payload.ADDLINE1,
+		addressLine2: payload.ADDLINE2,
+		suburb: payload.SUBURB,
+		city: payload.CITY,
+		territory: payload.STATE,
+		postcode: payload.POSTCODE as :string
+	},
+	lastModified: payload.LASTMODIFED
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <choice-exception-strategy doc:name="Choice Exception Strategy">
+            <catch-exception-strategy when="#[exception.causedBy(java.lang.IllegalArgumentException)]" doc:name="Catch Invalid Data">
+                <dw:transform-message doc:name="Set statusCode and reason variables" metadata:id="77eb0ffc-8342-4caa-853f-f7c084a649c2">
+                    <dw:set-variable variableName="statusCode"><![CDATA[%dw 1.0
+%output application/java
+---
+"400"]]></dw:set-variable>
+                    <dw:set-variable variableName="reason"><![CDATA[%dw 1.0
+%output application/java
+---
+"Bad Request: Your request contained invalid or missing data"]]></dw:set-variable>
+                </dw:transform-message>
+                <set-payload value="Invalid input data: #[payload]" doc:name="Set Payload"/>
+            </catch-exception-strategy>
+            <catch-exception-strategy when="#[exception.causedBy(java.lang.NullPointerException)]" doc:name="Catch Missing Data">
+                <dw:transform-message doc:name="Set statusCode and reason variables" metadata:id="d005b1f4-6a95-4635-bb8b-f3e0669a7f67">
+                    <dw:set-variable variableName="statusCode"><![CDATA[%dw 1.0
+%output application/java
+---
+"400"]]></dw:set-variable>
+                    <dw:set-variable variableName="reason"><![CDATA[%dw 1.0
+%output application/java
+---
+"Bad Request:Missing input data"]]></dw:set-variable>
+                </dw:transform-message>
+                <set-payload value="Missing input data: #[payload]" doc:name="Set Payload"/>
+            </catch-exception-strategy>
+        </choice-exception-strategy>
+
+    </flow>
+    <flow name="get:/customers/{ID}:customer-config">
+        <logger message="query for customerID : #[message.inboundProperties.'http.query.string'.ID]" level="INFO" doc:name="Logger"/>
+        <ee:cache cachingStrategy-ref="Caching_Strategy1" filterExpression="#[message.inboundProperties.cache-control] == &quot;only-if-cached&quot;" doc:name="Cache">
+            <until-successful objectStore-ref="objectstore" maxRetries="5" doc:name="Retries 3 times">
+                <db:select config-ref="Generic_Database_Configuration" doc:name="Database">
+                    <db:dynamic-query><![CDATA[SELECT c.custID ,c.FIRSTNAME ,c.LASTNAME ,a.ADDLINE1 ,a.ADDLINE2 ,a.SUBURB ,a.CITY, a.STATE, a.POSTCODE ,c.LASTMODIFED FROM CUSTOMER c,ADDRESS a
+WHERE c.custID=#[message.inboundProperties.'http.query.string'.ID]
+AND
+c.custID=a.custID;]]></db:dynamic-query>
+                </db:select>
+            </until-successful>
+        </ee:cache>
+        <dw:transform-message doc:name="Transform Message" metadata:id="30b5bcf2-e8b1-46ae-8cd9-23883941cb44">
+            <dw:input-payload mimeType="application/java"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+	id: payload.CUSTID,
+	firstName: payload.FIRSTNAME,
+	lastName: payload.LASTNAME,
+	address: {
+		addressLine1: payload.ADDLINE1,
+		addressLine2: payload.ADDLINE2,
+		suburb: payload.SUBURB,
+		city: payload.CITY,
+		territory: payload.STATE,
+		postcode: payload.POSTCODE
+	},
+	lastModified: payload.LASTMODIFED
+}]]></dw:set-payload>
+        </dw:transform-message>
+
+        <catch-exception-strategy doc:name="Catch Exception Strategy">
+            <logger level="INFO" doc:name="Logger"/>
+            <set-payload doc:name="Set Payload"/>
+        </catch-exception-strategy>
+
+    </flow>
+    <apikit:mapping-exception-strategy name="customer-apiKitGlobalExceptionMapping">
+        <apikit:mapping statusCode="404">
+            <apikit:exception value="org.mule.module.apikit.exception.NotFoundException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property"/>
+            <set-payload value="{ &quot;message&quot;: &quot;Resource not found&quot; }" doc:name="Set Payload"/>
+
+        </apikit:mapping>
+        <apikit:mapping statusCode="405">
+            <apikit:exception value="org.mule.module.apikit.exception.MethodNotAllowedException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property"/>
+            <set-payload value="{ &quot;message&quot;: &quot;Method not allowed&quot; }" doc:name="Set Payload"/>
+        </apikit:mapping>
+        <apikit:mapping statusCode="415">
+            <apikit:exception value="org.mule.module.apikit.exception.UnsupportedMediaTypeException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property"/>
+            <set-payload value="{ &quot;message&quot;: &quot;Unsupported media type&quot; }" doc:name="Set Payload"/>
+        </apikit:mapping>
+        <apikit:mapping statusCode="406">
+            <apikit:exception value="org.mule.module.apikit.exception.NotAcceptableException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property"/>
+            <set-payload value="{ &quot;message&quot;: &quot;Not acceptable&quot; }" doc:name="Set Payload"/>
+        </apikit:mapping>
+        <apikit:mapping statusCode="400">
+            <apikit:exception value="org.mule.module.apikit.exception.BadRequestException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property"/>
+            <set-payload value="{ &quot;message&quot;: &quot;Bad request&quot; }" doc:name="Set Payload"/>
+        </apikit:mapping>
+    </apikit:mapping-exception-strategy>
+</mule>
