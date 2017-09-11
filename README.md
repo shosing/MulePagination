@@ -5,7 +5,7 @@ Mule responds to end user calls submitted via Web browser on the below resources
 
 - /customers : retrieves list of customers.
 - /customers?postcde=2135 : retrieves list of customers with postcode 2135
-- /customer/1 - gets a sinfle customer from database with ID equal to 1.
+- /customer/1 - gets a sigfle customer from database with ID equal to 1.
 
 This application allows customer to retrieves cached customer details based on the 'cache-control' passed in header request
 
@@ -19,12 +19,8 @@ Complete the following procedure to create, then run this example in your own in
 
 Open the customer application in Anypoint Studio from Anypoint Exchange. Do not run the application.
 
-Run a H2 embedded database and change the credentials in the configuration.xml file.
+Run a H2 embedded database and change the credentials in the configuration.xml file. This application queries two table with customerID and the reference key between both.
 
-
-In your application in Studio, click the Global Elements tab.
-
-Double-click the NetSuite global element to open its Global Element Properties panel. Configure it as follows:
 
  
 
