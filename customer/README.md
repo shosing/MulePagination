@@ -39,8 +39,3 @@ The XML configuration which corresponds to each flow in your application
 The text you entered in the Notes tab of any building block in your flow
 Follow the procedure to export auto-generated Studio documentation.
 
-Go Further
-
-Learn more about Connection Testing.
-Learn more about NetSuite Connector
-Learn more about Anypoint DataWeave.
