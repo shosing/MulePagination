@@ -144,6 +144,7 @@ traits:
 /customers:
   get:
     "queryParameters":
+      firstName?: string
       postcode?: number
 
     responses:
@@ -191,6 +192,19 @@ traits:
                     "code" : "CUST_4000",
                     "Status" : "INTERNAL",
                     "message" : "Bad Request: Your request contained invalid or missing data",
+                    "datetime": "2017-05-21T12:00:27.87+10:00"
+                    }
+                }
+      202:
+          "description": "Backend service not available"
+          "body": 
+            application/json:
+              example: | 
+                {
+                "error" : {
+                    "code" : "CUST_1000",
+                    "Status" : "INTERNAL",
+                    "message" : "Back service not avaiable : not able to connect customer database.",
                     "datetime": "2017-05-21T12:00:27.87+10:00"
                     }
                 }
